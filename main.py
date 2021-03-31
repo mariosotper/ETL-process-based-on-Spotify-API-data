@@ -10,7 +10,38 @@ import sqlite3
 
 DATABASE_LOCATION = "sqlite:///my_played_tracks.sqlite"
 USER_ID = "31ohedumjbebinehgzvl2z6xymoa"
-TOKEN = "BQAajLAS9OCh3ZkRXyPlesFvTfFvYR2sp0VBn6DXg6XfUBBeLIocCOGzNjfBXTCMNRSl8wrgN_h7iTu_6h-4RJZYtntKLxLP4SFoqxVorKiN8XK3qpdBJpv_N4048g_qgjUyfIq9iEMl2UNtXCrXhm17PdEBdIkd2dKCl-bBVuos"
+TOKEN = "BQBJ8ZlJQ5wHgMhGt8WFScVWeg0TLVlPcrOzr0e6nLymEm-TyBWJXNXBZ8_YVe8nOH3xBsVrGJm8RABw89v-ZzWolDZ-dDslgFgXDey7DlDzd0atOAjs97RE0g60uohrqGjXH7uIj2d1MxWSVSwhjXFsqNj7pIB6DpbynDVHX2UM"
+
+
+def check_if_valid_data(df: pd.DataFrame) -> bool:
+    # Check if dataframe is empty
+    if df.empty:
+        print("No songs downloaded. Finishing execution")
+        return False
+
+    # Primary Key Check
+    if pd.Series(df["played_at"]).is_unique:
+        pass
+    else:
+        raise Exception("Primary Key check is violated")
+
+    # Check for nulls
+    if df.isnull().values.any():
+        raise Exception("Null values found")
+
+    # # Check that all timestamps are of yesterday's date
+    # yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+    # yesterday = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # timestamps = df["timestamp"].tolist()
+    # for timestamp in timestamps:
+    #     if datetime.datetime.strptime(timestamp, "%Y-%m-%d") != yesterday:
+    #         raise Exception(
+    #             "At least one of the returned songs does not have a yesterday's timestamp"
+    #         )
+
+    # return True
+
 
 if __name__ == "__main__":
     headers = {
@@ -55,4 +86,36 @@ if __name__ == "__main__":
         song_dict, columns=["song_name", "artist_name", "played_at", "timestamp"]
     )
 
-    print(song_df)
+    # Validate
+    if check_if_valid_data(song_df):
+        print("Data valid, proceed to load stage")
+
+    # Load
+
+    engine = sqlalchemy.create_engine(DATABASE_LOCATION)
+    conn = sqlite3.connect("my_played_tracks.sqlite")
+    cursor = conn.cursor()
+
+    sql_query = """
+    CREATE TABLE IF NOT EXISTS my_played_tracks(
+        song_name VARCHAR(200),
+        artist_name VARCHAR(200),
+        played_at VARCHARR(200),
+        timestamp VARCHAR(200),
+        CONSTRAINT primary_key_constrait PRIMARY KEY (played_at)
+    )
+
+
+    """
+
+    cursor.execute(sql_query)
+    print("Opened database successfully")
+
+    try:
+        song_df.to_sql("my_played_tracks", engine, index=False, if_exists="append")
+    except:
+        print("Data already exists in the data base")
+
+    conn.close()
+    print("closed successfully")
+
